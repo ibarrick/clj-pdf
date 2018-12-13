@@ -5,8 +5,8 @@
 (declare ^:dynamic *cache*)
 
 
-(defmulti render (fn [tag meta & els] tag))
-(defmethod render :default [tag meta & els]
+(defmulti render (fn [tag doc meta & els] tag))
+(defmethod render :default [tag doc meta & els]
   (throw (ex-info (str "invalid tag: " tag) {:meta meta :content els})))
 
 
@@ -15,14 +15,14 @@
 
 
 (defn make-section
-  ([element]
+  ([doc element]
    (cond
      (empty? element)             ""
      (every? sequential? element) (doseq [item element]
-                                    (make-section item))
-     element                      (make-section {} element)
+                                    (make-section doc item))
+     element                      (make-section doc {} element)
      :else                        ""))
-  ([meta element]
+  ([doc meta element]
    (try
      (cond
        (string? element) element
@@ -40,16 +40,18 @@
                                 class-attrs (merge class-attrs)
                                 attrs       (merge attrs))]
 
-         (apply render tag new-meta elements)))
+         (apply render tag doc new-meta elements)))
      (catch Exception e
-       (prn meta element)
-       (throw (ex-info "failed to parse element" {:meta meta :element element} e))))))
+       (println e)
+       (throw e)
+       (comment (prn meta element)
+       (throw (ex-info "failed to parse element" {:meta meta :element element} e)))))))
 
 
-(defn make-section-or [if-string meta item]
+(defn make-section-or [doc if-string meta item]
   (if (string? item)
-    (render if-string meta item)
-    (make-section meta item)))
+    (render if-string doc meta item)
+    (make-section doc meta item)))
 
 
 ;; that require is here to overcome circular import

@@ -6,7 +6,7 @@
             [clj-pdf.graphics-2d :as g2d]
             [clj-pdf.section :refer [render *cache* make-section make-section-or]])
   (:import [cljpdf.text
-            Anchor Annotation ChapterAutoNumber Chunk Font ImgRaw Image
+            Document Anchor Annotation ChapterAutoNumber Chunk Font ImgRaw Image
             List GreekList RomanList ListItem Paragraph Phrase Rectangle Section
             ZapfDingbatsList ZapfDingbatsNumberList]
            [cljpdf.text.pdf MultiColumnText]
@@ -14,19 +14,19 @@
 
 
 (defmethod render :anchor
-  [_ {:keys [style leading id target] :as meta} content]
+  [_ ^Document doc {:keys [style leading id target] :as meta} content]
   (let [a (cond
             (and style leading)
             (new Anchor (float leading) content (font style))
 
             leading
-            (new Anchor (float leading) (make-section-or :chunk meta content))
+            (new Anchor (float leading) (make-section-or doc :chunk meta content))
 
             style
             (new Anchor ^String content (font style))
 
             :else
-            (new Anchor (make-section-or :chunk meta content)))]
+            (new Anchor (make-section-or doc :chunk meta content)))]
 
     (when id (.setName a id))
     (when target (.setReference a target))
@@ -34,15 +34,15 @@
 
 
 (defmethod render :annotation
-  ([_ _ title text] (render :annotation title text))
-  ([_ title text] (new Annotation title text)))
+  ([doc title text] (render :annotation doc title text))
+  ([_ doc title text] (new Annotation title text)))
 
 
 (defmethod render :chapter
-  [tag meta & [title & sections]]
-  (let [ch (new ChapterAutoNumber (make-section-or :paragraph meta title))]
+  [tag ^Document doc meta & [title & sections]]
+  (let [ch (new ChapterAutoNumber (make-section-or doc :paragraph meta title))]
     (doseq [section sections]
-      (make-section (assoc meta :parent ch) section))
+      (make-section doc (assoc meta :parent ch) section))
     ch))
 
 
@@ -59,8 +59,8 @@
     (.setBackground element color)))
 
 
-(defn- text-chunk [style content]
-  (let [ch (new Chunk ^String (make-section content) ^Font (font style))]
+(defn- text-chunk [doc style content]
+  (let [ch (new Chunk ^String (make-section doc content) ^Font (font style))]
     (set-background ch style)
     (cond
       (:super style) (.setTextRise ch (float 5))
@@ -69,27 +69,27 @@
 
 
 (defmethod render :chunk
-  [_ meta content]
-  (let [children (make-section content)]
+  [_ ^Document doc meta content]
+  (let [children (make-section doc content)]
     (if (instance? ImgRaw children)
       (image-chunk meta children)
-      (text-chunk meta children))))
+      (text-chunk doc meta children))))
 
 
 (defmethod render :graphics
-  [_ meta cb]
+  [_ ^Document doc meta cb]
   (g2d/with-graphics meta cb))
 
 
 (defmethod render :heading
-  [_ meta & content]
+  [_ ^Document doc meta & content]
   (apply render :paragraph
     (merge meta (merge {:size 18 :style :bold} (:style meta)))
     content))
 
 
 (defmethod render :line
-  ([_ {dotted? :dotted, gap :gap, color :color width :line-width}]
+  ([_ ^Document doc {dotted? :dotted, gap :gap, color :color width :line-width}]
    (let [^LineSeparator lineSeparator
          (if dotted?
            (if gap
@@ -100,12 +100,12 @@
      (when width (.setLineWidth lineSeparator (float width)))
      (.setOffset lineSeparator -5)
      lineSeparator))
-  ([_ meta & _]
+  ([_ ^Document doc meta & _]
    (render :line meta)))
 
 
 (defmethod render :list
-  [_ {:keys [numbered
+  [_ ^Document doc {:keys [numbered
              lettered
              roman
              greek
@@ -141,12 +141,12 @@
     (when symbol (.setListSymbol list (str symbol)))
 
     (doseq [item items]
-      (.add list (new ListItem (make-section-or :chunk meta item))))
+      (.add list (new ListItem (make-section-or doc :chunk meta item))))
     list))
 
 
 (defmethod render :multi-column
-  [_ {:keys [left-margin right-margin page-width gutter-width top height columns] :as meta}
+  [_ ^Document doc {:keys [left-margin right-margin page-width gutter-width top height columns] :as meta}
    content]
   (let [ml-text (cond
                   (and top height)
@@ -160,12 +160,12 @@
                         (float (- page-width right-margin))
                         (float (or gutter-width 10))
                         (int columns))
-    (.addElement ml-text (make-section-or :phrase meta content))
+    (.addElement ml-text (make-section-or doc :phrase meta content))
     ml-text))
 
 
 (defmethod render :paragraph
-  [_ {:keys [first-line-indent indent indent-left indent-right spacing-before spacing-after keep-together leading align ] :as meta}
+  [_ ^Document doc {:keys [first-line-indent indent indent-left indent-right spacing-before spacing-after keep-together leading align ] :as meta}
    & content]
 
   (let [paragraph (Paragraph.)
@@ -181,56 +181,56 @@
     (if align (.setAlignment paragraph ^int (get-alignment align)))
 
     (doseq [item content]
-      (.add paragraph (make-section-or :chunk meta item)))
+      (.add paragraph (make-section-or doc :chunk meta item)))
 
     paragraph))
 
 
 (defmethod render :phrase
-  [_ {:keys [leading] :as meta} & content]
+  [_ ^Document doc {:keys [leading] :as meta} & content]
   (doto (if leading (new Phrase (float leading)) (new Phrase))
     (.setFont (font meta))
-    (.addAll (map (partial make-section meta) content))))
+    (.addAll (map (partial make-section doc meta) content))))
 
 
 (defmethod render :reference
-  [_ meta reference-id]
+  [_ ^Document doc meta reference-id]
   (if-let [item (get @*cache* reference-id)]
     item
     (if-let [item (get-in meta [:references reference-id])]
-      (let [item (make-section item)]
+      (let [item (make-section doc item)]
         (swap! *cache* assoc reference-id item)
         item)
       (throw (Exception. (str "reference tag not found: " reference-id))))))
 
 
 (defmethod render :rectangle
-  [_ _ width height]
+  [_ ^Document doc _ width height]
   (new Rectangle width height))
 
 
 (defmethod render :spacer
-  ([_ meta] (render :spacer meta 1))
-  ([_ meta height]
-   (make-section [:paragraph (merge {:leading (:size meta 12)} meta) (apply str (take height (repeat "\n")))])))
+  ([_ ^Document doc meta] (render :spacer meta 1))
+  ([_ ^Document doc meta height]
+   (make-section doc [:paragraph (merge {:leading (:size meta 12)} meta) (apply str (take height (repeat "\n")))])))
 
 
 (defmethod render :subscript
-  [_ meta text]
-  (render :chunk (assoc meta :sub true) text))
+  [_ ^Document doc meta text]
+  (render :chunk doc (assoc meta :sub true) text))
 
 
 (defmethod render :superscript
-  [_ meta text]
-  (render :chunk (assoc meta :super true) text))
+  [_ ^Document doc meta text]
+  (render :chunk doc (assoc meta :super true) text))
 
 
 (defmethod render :section
-  [_ {:keys [indent] :as meta} & [title & content]]
-  (let [paragraph (make-section-or :paragraph meta title)
+  [_ ^Document doc {:keys [indent] :as meta} & [title & content]]
+  (let [paragraph (make-section-or doc :paragraph meta title)
         sec       (.addSection ^Section (:parent meta) ^Paragraph paragraph)]
     (if indent (.setIndentation sec (float indent)))
     (doseq [item content]
       (if (and (coll? item) (= :section (first item)))
-        (make-section (assoc meta :parent sec) item)
-        (.add sec (make-section-or :chunk meta item))))))
+        (make-section doc (assoc meta :parent sec) item)
+        (.add sec (make-section-or doc :chunk meta item))))))

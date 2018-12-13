@@ -1,6 +1,6 @@
-(defproject clj-pdf "2.2.33"
+(defproject clj-pdf "2.2.34"
   :description "PDF generation library"
-  :url "https://github.com/yogthos/clj-pdf"
+  :url "https://github.com/ibarrick/clj-pdf"
 
   :license {:name         "GNU Lesser General Public License - v 3"
             :url          "http://www.gnu.org/licenses/lgpl.html"

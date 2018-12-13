@@ -1,7 +1,9 @@
 (ns clj-pdf.section.cell
-  (:require [clj-pdf.utils :refer [get-color get-alignment]]
-            [clj-pdf.section :refer [render make-section-or]])
+  (:require [clj-pdf.utils :refer [get-color get-alignment font]]
+            [clj-pdf.section :refer [render make-section-or]]
+            [clj-pdf.section.core :refer [set-background]])
   (:import [cljpdf.text Cell Rectangle]
+           [cljpdf.text Chunk Font Paragraph Document]
            [cljpdf.text.pdf PdfPCell]))
 
 
@@ -14,7 +16,7 @@
 
 
 (defmethod render :cell
-  [_ {:keys [background-color
+  [_ ^Document doc {:keys [background-color
              colspan
              rowspan
              border
@@ -54,7 +56,7 @@
     (.setHorizontalAlignment c ^int (get-alignment align))
 
     (doseq [item content]
-      (.addElement c (make-section-or :chunk meta item)))
+      (.addElement c (make-section-or doc :chunk meta item)))
 
     c))
 
@@ -78,7 +80,7 @@
 
 
 (defmethod render :pdf-cell
-  [_ {:keys [background-color
+  [_ ^Document doc {:keys [background-color
              colspan
              rowspan
              border
@@ -132,6 +134,66 @@
     (.setVerticalAlignment c ^int (get-alignment valign))
 
     (doseq [item content]
-      (.addElement c (make-section-or :paragraph meta item)))
+      (.addElement c (make-section-or doc :paragraph meta item)))
+    c))
 
+(defn create-chunk ^Chunk [meta ^String item]
+  (let [ch (new Chunk ^String item ^Font (font meta))]
+    (set-background ch meta)
+    ch))
+
+(defn render-pdf-cell2
+  [^Document doc {:keys [background-color
+           colspan
+           rowspan
+           border
+           align
+           valign
+           set-border
+           border-color
+           border-width
+           border-width-bottom
+           border-width-left
+           border-width-right
+           border-width-top
+           padding
+           padding-bottom
+           padding-left
+           padding-right
+           padding-top
+           rotation
+           height
+           min-height] :as meta}
+   content]
+
+  (let [c (PdfPCell.)]
+
+    (when-let [color (get-color background-color)]
+      (.setBackgroundColor c color))
+
+    (when-let [color (get-color border-color)]
+      (.setBorderColor c color))
+
+    (when (not (nil? border))
+      (.setBorder c (if border Rectangle/BOX Rectangle/NO_BORDER)))
+
+    (when rowspan (.setRowspan c (int rowspan)))
+    (when colspan (.setColspan c (int colspan)))
+    (when set-border (.setBorder c (int (get-border set-border))))
+    (when border-width (.setBorderWidth c (float border-width)))
+    (when border-width-bottom (.setBorderWidthBottom c (float border-width-bottom)))
+    (when border-width-left (.setBorderWidthLeft c (float border-width-left)))
+    (when border-width-right (.setBorderWidthRight c (float border-width-right)))
+    (when border-width-top (.setBorderWidthTop c (float border-width-top)))
+    (when padding (pdf-cell-padding c padding))
+    (when padding-bottom (.setPaddingBottom c (float padding-bottom)))
+    (when padding-left (.setPaddingLeft c (float padding-left)))
+    (when padding-right (.setPaddingRight c (float padding-right)))
+    (when padding-top (.setPaddingTop c (float padding-top)))
+    (when rotation (.setRotation c (int rotation)))
+    (when height (.setFixedHeight c (float height)))
+    (when min-height (.setMinimumHeight c (float min-height)))
+    (.setHorizontalAlignment c ^int (get-alignment align))
+    (.setVerticalAlignment c ^int (get-alignment valign))
+    (.addElement c (create-chunk meta content))
     c))

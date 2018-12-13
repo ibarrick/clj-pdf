@@ -1,11 +1,12 @@
 (ns clj-pdf.section.table
   (:require [clj-pdf.utils :refer [get-color get-alignment split-classes-from-tag]]
-            [clj-pdf.section :refer [render make-section]])
-  (:import [cljpdf.text Cell Element Rectangle Table]
+            [clj-pdf.section :refer [render make-section]]
+            [clj-pdf.section.cell :refer [render-pdf-cell2]])
+  (:import [cljpdf.text Cell Element Rectangle Table Document]
            [cljpdf.text.pdf PdfPCell PdfPTable]))
 
 
-(defn- table-header [meta ^Table tbl header cols]
+(defn- table-header [^Document doc meta ^Table tbl header cols]
   (when header
     (let [meta?            (map? (first header))
           background-color (get-color (when meta? (:background-color (first header))))
@@ -16,8 +17,8 @@
       (if (= 1 (count header-data))
         (let [header               (first header-data)
               ^Element header-text (if (string? header)
-                                     (make-section meta [:phrase {:style "bold"} header])
-                                     (make-section meta header))
+                                     (make-section doc meta [:phrase {:style "bold"} header])
+                                     (make-section doc meta header))
               header-cell          (doto (new Cell header-text)
                                      (.setHorizontalAlignment 1)
                                      (.setHeader true)
@@ -27,8 +28,8 @@
 
         (doseq [h header-data]
           (let [^Element header-text (if (string? h)
-                                       (make-section meta [:phrase {:style "bold"} h])
-                                       (make-section meta h))
+                                       (make-section doc meta [:phrase {:style "bold"} h])
+                                       (make-section doc meta h))
                 ^Cell header-cell    (if (= Cell (type header-text))
                                        header-text
                                        (new Cell header-text))
@@ -43,7 +44,7 @@
 
 
 (defn- add-table-cell
-  [^Table tbl meta content]
+  [^Document doc ^Table tbl meta content]
   (let [[tag & cx] (when (vector? content)
                      (split-classes-from-tag (first content)))
         element    (cond
@@ -51,23 +52,26 @@
                      (nil? content)    [:cell [:chunk meta ""]]
                      (string? content) [:cell [:chunk meta content]]
                      :else             [:cell content])]
-    (.addCell tbl ^Cell (make-section meta element))))
+    (.addCell tbl ^Cell (make-section doc meta element))))
 
 
 (defn- add-pdf-table-cell
-  [^PdfPTable tbl meta content]
-  (let [[tag & cx] (when (vector? content)
-                     (split-classes-from-tag (first content)))
+  [^Document doc ^PdfPTable tbl meta content]
+  (let [tag (when (vector? content)
+                    (get content 0))
         element    (cond
                      (= tag :pdf-cell) content
+                     (= tag :pdf-cell2) content
                      (nil? content)    [:pdf-cell [:chunk meta ""]]
                      (string? content) [:pdf-cell [:chunk meta content]]
                      :else             [:pdf-cell content])]
-    (.addCell tbl ^PdfPCell (make-section meta element))))
+    (if (= :pdf-cell2 tag)
+      (.addCell tbl ^PdfPCell (render-pdf-cell2 doc (merge meta (get content 1)) (get content 2)))
+      (.addCell tbl ^PdfPCell (make-section doc meta element)))))
 
 
 (defmethod render :table
-  [_ {:keys [align
+  [_ ^Document doc {:keys [align
              background-color
              border
              border-width
@@ -109,7 +113,7 @@
     (.setPadding tbl (if padding (float padding) (float 3)))
     (if spacing (.setSpacing tbl (float spacing)))
     (if offset (.setOffset tbl (float offset)))
-    (table-header meta tbl header cols)
+    (table-header doc meta tbl header cols)
 
     (.setAlignment tbl ^int (get-alignment align))
 
@@ -117,13 +121,13 @@
 
     (doseq [row rows]
       (doseq [column row]
-        (add-table-cell tbl (dissoc meta :header :align :offset :num-cols :width :widths) column)))
+        (add-table-cell doc tbl (dissoc meta :header :align :offset :num-cols :width :widths) column)))
 
     tbl))
 
 
 (defmethod render :pdf-table
-  [_ {:keys [bounding-box
+  [_ ^Document doc {:keys [bounding-box
              cell-border
              footer
              header
@@ -166,7 +170,6 @@
 
       (when width (.setTotalWidth tbl (float width)))
       (when width-percent (.setWidthPercentage tbl (float width-percent)))
-
       (if bounding-box
         (if-not widths
           (throw (new Exception "widths must be non-nil when bounding-box is used in a pdf-table"))
@@ -189,11 +192,24 @@
                                         ; PdfPTable default behaviour
       (.setSplitRows tbl (boolean (not no-split-rows?)))
       (.setSplitLate tbl (boolean (not no-split-late?)))
-
-      (doseq [row rows]
+      (.setComplete tbl false)
+      (let [it (clojure.lang.RT/iter rows)]
+        (loop [i 0]
+          (if (.hasNext it)
+            (let [it2 (clojure.lang.RT/iter (.next it))]
+              (loop []
+                (if (.hasNext it2)
+                  (do (add-pdf-table-cell doc tbl (merge meta (when (false? cell-border) {:set-border []})) (.next it2))
+                      (recur))))
+              (do 
+                (if (= (mod i 5000) 1)
+                  (.add doc tbl)) 
+                (recur (inc i)))))))
+      (.setComplete tbl true)
+      (comment (doseq [row rows]
         (doseq [column row]
-          (add-pdf-table-cell tbl
+          (add-pdf-table-cell doc tbl
             (merge meta (when (false? cell-border) {:set-border []}))
-            column)))
+            column))))
 
       tbl)))

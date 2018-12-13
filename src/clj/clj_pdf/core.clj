@@ -110,6 +110,7 @@
     (= [:clear-double-page] item) (clear-double-page stylesheet references font-style width height item doc pdf-writer)
     :else (.add doc
                 (make-section
+                  doc
                   (assoc font-style
                     :stylesheet stylesheet
                     :references references
@@ -140,7 +141,7 @@
         ;; :header and :footer are different for the root document meta map vs. the meta map
         ;; that is expected for :pdf-table (which is what 'x' here should be at this point)
         ;; TODO: remove other possible map key conflicts? i think these are the only 2 ...
-        (make-section (dissoc meta :header :footer) x)))
+        (make-section doc (dissoc meta :header :footer) x)))
 
 ;; FIXME: unused?
 (defn table-header-footer-height [content meta ^Document doc page-numbers? footer?]

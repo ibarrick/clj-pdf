@@ -15,10 +15,9 @@
   (apply merge (map stylesheet classes)))
 
 
-(defn get-color [color]
-  (let [[r g b] color]
-    (when (and r g b)
-      (Color. (int r) (int g) (int b)))))
+(defn get-color [color] 
+  (when color 
+    (Color. (int (get color 0)) (int (get color 1)) (int (get color 2)))))
 
 
 (defn get-alignment [align]
@@ -50,7 +49,8 @@
     (get-style (first styles))))
 
 
-(defn font ^Font
+
+(defn font-um ^Font
   [{style    :style
     styles   :styles
     size     :size
@@ -87,3 +87,4 @@
 
     (FontFactory/getFont ttf encoding true size style color)))
 
+(def font (memoize font-um))

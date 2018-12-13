@@ -440,7 +440,7 @@ public class PdfPTable implements LargeElement{
      */
     public void addCell(PdfPCell cell) {
     	rowCompleted = false;
-        PdfPCell ncell = new PdfPCell(cell);
+        PdfPCell ncell = cell;//new PdfPCell(cell);
 
         int colspan = ncell.getColspan();
         colspan = Math.max(colspan, 1);
