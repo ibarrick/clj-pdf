@@ -147,7 +147,6 @@
 
   (when (empty? rows)
     (throw (new Exception "Table must contain at least one row")))
-
   (let [header-size (if (seq header) (count header))
         footer-size (if (seq footer) (count footer))
         ;; with PdfPTable, the header and footer rows need to go first in the list
@@ -202,14 +201,8 @@
                   (do (add-pdf-table-cell doc tbl (merge meta (when (false? cell-border) {:set-border []})) (.next it2))
                       (recur))))
               (do 
-                (if (= (mod i 5000) 1)
+                (if (and (= (mod i 5000) 0) (> i header-size))
                   (.add doc tbl)) 
                 (recur (inc i)))))))
       (.setComplete tbl true)
-      (comment (doseq [row rows]
-        (doseq [column row]
-          (add-pdf-table-cell doc tbl
-            (merge meta (when (false? cell-border) {:set-border []}))
-            column))))
-
       tbl)))

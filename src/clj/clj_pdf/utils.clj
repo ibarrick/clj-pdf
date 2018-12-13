@@ -50,7 +50,7 @@
 
 
 
-(defn font-um ^Font
+(defn font ^Font
   [{style    :style
     styles   :styles
     size     :size
@@ -87,4 +87,3 @@
 
     (FontFactory/getFont ttf encoding true size style color)))
 
-(def font (memoize font-um))

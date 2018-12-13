@@ -1,4 +1,4 @@
-(defproject clj-pdf "2.2.34"
+(defproject ibarrick/clj-pdf "2.2.35"
   :description "PDF generation library"
   :url "https://github.com/ibarrick/clj-pdf"
 

@@ -440,7 +440,7 @@ public class PdfPTable implements LargeElement{
      */
     public void addCell(PdfPCell cell) {
     	rowCompleted = false;
-        PdfPCell ncell = cell;//new PdfPCell(cell);
+        PdfPCell ncell = new PdfPCell(cell);
 
         int colspan = ncell.getColspan();
         colspan = Math.max(colspan, 1);
@@ -970,8 +970,9 @@ public class PdfPTable implements LargeElement{
      */
     public void deleteBodyRows() {
         ArrayList rows2 = new ArrayList();
-        for (int k = 0; k < headerRows; ++k)
+        for (int k = 0; k < headerRows; ++k) {
             rows2.add(rows.get(k));
+		}
         rows = rows2;
         totalHeight = 0;
         if (totalWidth > 0)
