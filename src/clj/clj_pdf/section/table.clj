@@ -145,8 +145,8 @@
    widths
    & rows]
 
-  (when (empty? rows)
-    (throw (new Exception "Table must contain at least one row")))
+  (comment (when (empty? rows)
+    (throw (new Exception "Table must contain at least one row"))))
   (let [header-size (if (seq header) (count header))
         footer-size (if (seq footer) (count footer))
         ;; with PdfPTable, the header and footer rows need to go first in the list

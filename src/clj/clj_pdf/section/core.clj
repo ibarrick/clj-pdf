@@ -84,6 +84,7 @@
 (defmethod render :heading
   [_ ^Document doc meta & content]
   (apply render :paragraph
+    doc
     (merge meta (merge {:size 18 :style :bold} (:style meta)))
     content))
 
@@ -101,7 +102,7 @@
      (.setOffset lineSeparator -5)
      lineSeparator))
   ([_ ^Document doc meta & _]
-   (render :line meta)))
+   (render :line doc meta)))
 
 
 (defmethod render :list
@@ -210,7 +211,7 @@
 
 
 (defmethod render :spacer
-  ([_ ^Document doc meta] (render :spacer meta 1))
+  ([_ ^Document doc meta] (render :spacer doc meta 1))
   ([_ ^Document doc meta height]
    (make-section doc [:paragraph (merge {:leading (:size meta 12)} meta) (apply str (take height (repeat "\n")))])))
 
