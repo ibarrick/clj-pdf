@@ -108,19 +108,6 @@
   (cond
     (= [:pagebreak] item) (.newPage doc)
     (= [:clear-double-page] item) (clear-double-page stylesheet references font-style width height item doc pdf-writer)
-    (= (first item) :pdf-table) (make-section
-                                  doc
-                                  (assoc font-style
-                                    :stylesheet stylesheet
-                                    :references references
-                                    :left-margin (.leftMargin doc)
-                                    :right-margin (.rightMargin doc)
-                                    :top-margin (.topMargin doc)
-                                    :bottom-margin (.bottomMargin doc)
-                                    :page-width width
-                                    :page-height height
-                                    :pdf-writer pdf-writer)
-                                  (or item [:paragraph item]))
     :else (.add doc
                 (make-section
                   doc
