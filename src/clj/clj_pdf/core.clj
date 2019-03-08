@@ -444,6 +444,7 @@
          ^ByteArrayOutputStream temp-stream
          ^OutputStream output-stream
          ^PdfWriter pdf-writer] (setup-doc doc-meta out)]
+    (.add doc (new Chunk ""))
     (loop []
       (if-let [item (input-reader r)]
         (do

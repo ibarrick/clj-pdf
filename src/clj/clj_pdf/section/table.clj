@@ -201,7 +201,7 @@
                   (do (add-pdf-table-cell doc tbl (merge meta (when (false? cell-border) {:set-border []})) (.next it2))
                       (recur))))
               (do 
-                (if (and (= (mod i 5000) 0) (> i header-size))
+                (if (and (= (mod i 5000) 0) (> i (or header-size 0)))
                   (.add doc tbl)) 
                 (recur (inc i)))))))
       (.setComplete tbl true)
